@@ -5,13 +5,26 @@
 
 # Author: Stephen Finucane <stephenfinucane@hotmail.com>
 
-""" main.py: Main application file for UL iCal Generator """
+""" ul-ical-generator.
+
+Usage:
+  main.py <id_number>
+  main.py <id_number> [-o <output_file>]
+  main.py --version
+
+Options:
+  -h --help               Show this screen.
+  -o FILE --output=FILE   Output file [default: ul_timetable.ics]
+  --version               Show version.
+
+"""
 
 from __future__ import print_function
 
 from icalendar import Calendar, Event
 from datetime import datetime, timedelta
 from dateutil import rrule
+from docopt import docopt
 from pytz import UTC
 
 import collections
@@ -62,6 +75,8 @@ def generate_calendar(timetable, calendar):
         first_start = datetime.combine(start_date, start_time)
         first_end = datetime.combine(start_date, end_time)
 
+        # google calendar complains if a UID is not specfied. Just generate 
+        # randomness
         uid = '{0}@ul-rest-api.appspot.com'.format(uuid.uuid4())
 
         week_days = {
@@ -122,8 +137,8 @@ def retrieve_calendar():
     'q' : academic_year,
   }
 
-  print('Getting calendar for academic year starting \
-    Sept {0}'.format(academic_year))
+  print('Getting calendar for academic year starting Sept {0}'
+    .format(academic_year))
 
   data = requests.get(url, params=params).text
   data = json.loads(data, object_pairs_hook=collections.OrderedDict)
@@ -142,15 +157,24 @@ def retrieve_calendar():
   return (start_date, end_date)
 
 if __name__ == '__main__':
-  timetable = retrieve_timetable('10127003')
+  args = docopt(__doc__)
+
+  id_number = args['<id_number>']
+  file_path = args['--output']
+
+  print('Writing to file: {0}'.format(file_path))
+
+  timetable = retrieve_timetable(id_number)
   calendar = retrieve_calendar()
 
   cal = generate_calendar(timetable, calendar)
 
   print('Writing ical to file')
 
-  f = open('calendar.ics', 'wb')
-  f.write(cal.to_ical())
-  f.close()
-
-  print('Done')
+  try:
+    f = open(file_path, 'wb')
+    f.write(cal.to_ical())
+    f.close()
+    print('Done')
+  except:
+    print('ERROR: There was an error writing to the file')
